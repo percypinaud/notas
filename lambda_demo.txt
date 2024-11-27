@@ -1,0 +1,76 @@
+import { RedshiftDataClient, ExecuteStatementCommand, DescribeStatementCommand, GetStatementResultCommand } from "@aws-sdk/client-redshift-data";
+
+const redshiftClient = new RedshiftDataClient({ region: "us-east-1" });
+const MAX_RETRIES = parseInt(process.env.REDSHIFT_MAX_RETRIES, 10) || 3;
+
+// Función para ejecutar comandos con reintentos
+const executeWithRetries = async (params) => {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            return await redshiftClient.send(new ExecuteStatementCommand(params));
+        } catch (err) {
+            console.error(`Intento ${attempt} fallido:`, err);
+            if (attempt === MAX_RETRIES) throw err;
+        }
+    }
+};
+
+// Función para verificar si un procedimiento existe
+const checkProcedureExists = async (procedureName) => {
+    const query = `
+        SELECT EXISTS (
+            SELECT 1
+            FROM pg_proc p
+            JOIN pg_namespace n ON p.pronamespace = n.oid
+            WHERE p.proname = '${procedureName}' AND n.nspname = 'public'
+        );
+    `;
+
+    const redshiftParams = {
+        WorkgroupName: process.env.REDSHIFT_CLUSTER_ID,
+        Database: process.env.REDSHIFT_DATABASE,
+        Sql: query
+    };
+
+    const { Id: statementId } = await executeWithRetries(redshiftParams);
+    
+    // Verificar el estado de la consulta
+    let status;
+    do {
+        const { Status: currentStatus } = await redshiftClient.send(new DescribeStatementCommand({ Id: statementId }));
+        status = currentStatus;
+
+        if (status === 'FAILED') {
+            throw new Error(`Consulta fallida: ${currentStatus.Error}`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    } while (status === 'PENDING' || status === 'STARTING');
+
+    const results = await redshiftClient.send(new GetStatementResultCommand({ Id: statementId }));
+    return results.Records?.[0]?.[0]?.booleanValue || false; // Devuelve false si no hay resultados
+};
+
+export const handler = async (event) => {
+    try {
+        const storedProcedure = event.stored_procedure;
+        if (!storedProcedure) throw new Error("Falta el nombre del procedimiento almacenado.");
+
+        // Verificar si el procedimiento existe
+        const exists = await checkProcedureExists(storedProcedure);
+        if (!exists) throw new Error(`El procedimiento almacenado '${storedProcedure}' no existe.`);
+
+        const query = `CALL public.${storedProcedure}();`;
+        const redshiftParams = {
+            WorkgroupName: process.env.REDSHIFT_CLUSTER_ID,
+            Database: process.env.REDSHIFT_DATABASE,
+            Sql: query
+        };
+
+        await executeWithRetries(redshiftParams);
+        return { status: 'Success', message: `Procedimiento almacenado '${storedProcedure}' ejecutado con éxito.` };
+    } catch (err) {
+        console.error('Error al ejecutar el procedimiento almacenado:', err.message);
+        return { status: 'Error', message: err.message };
+    }
+};

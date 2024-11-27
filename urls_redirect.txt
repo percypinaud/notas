@@ -1,0 +1,35 @@
+UID Orden
+https://tutati.com/pe/orders?uid_orders=<<uid_orders>>
+
+UID Orden paquete
+https://tutati.com/pe/orders-shipments?uid_orders_shipments=<<uid_orders_shipments>>
+
+UID Producto (LPN)
+https://tutati.com/pe/items?uid_items=<<uid_items>>
+
+UID Producto hijo
+https://tutati.com/pe/items-1?uid_items_1=<<uid_items_1>>
+
+UID Producto padre
+https://tutati.com/pe/items-2?uid_items_2=<<uid_items_2>>
+
+UID Promoción simple
+https://tutati.com/pe/promotions-simples?uid_promotions_simples=<<uid_promotions_simples>>
+
+UID Usuario Vendedor
+https://tutati.com/pe/users?uid_users=<<uid_users_sellers>>
+
+UID Usuario Lider
+https://tutati.com/pe/users?uid_users=<<uid_users_leaders>>
+
+UID Entrante
+https://tutati.com/pe/inbounds?uid_inbounds=<<uid_inbounds>>
+
+UID Saliente
+https://tutati.com/pe/outbounds?uid_outbounds=<<uid_outbounds>>
+
+UID Tienda
+https://tutati.com/pe/stores?uid_stores=<<uid_stores>>
+
+UID Tienda stock 
+https://tutati.com/pe/stores-rels-stores?uid_stores_stocks=<<uid_stores_stocks>>

@@ -1,0 +1,131 @@
+CREATE
+OR REPLACE VIEW v_orders_items_tutati AS
+SELECT
+    t2.uid_orders,
+    t2.eid_orders,
+    t2.id_orders,
+    t13.uid_orders_shipments,
+    t1.id_orders_shipments,
+    t13.id_orders_shipments_statuses,
+    t1.id_orders_items,
+    t3.id_items,
+    t3.lpn uid_items,
+    t3.invented,
+    t4.uid_items_1,
+    t4.eid_items_1,
+    t4.ean eid2_items_1,
+    t9.uid_items_2,
+    t9.eid_items_2,
+    t9.mpn eid2_items_2,
+    t9.id_items_2,
+    t9.season,
+    t9.season_year,
+    COALESCE(t15.item_2_taxonomy_term, '') supplier,
+    COALESCE(t17.item_2_taxonomy_term, '') brand,
+    t9.model,
+    COALESCE(t19.item_2_taxonomy_term, '') color,
+    t20.item_1_taxonomy_term size,
+    t26.item_2_taxonomy_term unit,
+    t6.uid_promotions_simples,
+    t1.subtotal,
+    t1.total,
+    t10.order_type,
+    t11.order_status,
+    t12.channel,
+    
+    -- sellers
+    t29.uid_users uid_users_seller,
+    t1.user_seller_commission_percentage,
+    t1.user_seller_commission,
+
+    --leaders
+    t30.uid_users uid_users_leader,
+    t1.user_leader_commission_percentage,
+    t1.user_leader_commission,
+
+    --buyers 
+    t34.uid_users uid_users_buyer,
+    t34.birthday birthday_buyer,
+    t35.user_gender user_gender_buyer,
+    
+    CASE
+        WHEN t36.id_stores_deliveries IS NOT NULL THEN t38.country_ubigeo
+        ELSE t42.country_ubigeo 
+    END AS country_ubigeo_district,
+    CASE
+        WHEN t36.id_stores_deliveries IS NOT NULL THEN t39.country_ubigeo
+        ELSE t43.country_ubigeo 
+    END AS country_ubigeo_province,
+    CASE
+        WHEN t36.id_stores_deliveries IS NOT NULL THEN t40.country_ubigeo
+        ELSE t44.country_ubigeo 
+    END AS country_ubigeo_department,
+
+    t5.store store_stock,
+    t31.store_location AS location,
+    t36.rma_reason reason,
+    public.default_item_image(t27.path, 30, 30) AS path,
+    CONVERT_TIMEZONE('America/Lima', t2.timestamp_documented) AS timestamp_documented,
+    public.cuid_to_datetime(t1.cuid_inserted:: text) timestamp_created,
+    public.cuid_to_datetime(t1.cuid_updated:: text) timestamp_modified,
+    t8.store store_created,
+    t32.store store_documented,
+    t33.id_commerces,
+    t33.commerce
+FROM
+    main.main.t_orders_items t1
+    INNER JOIN main.main.t_orders t2 ON t2.id_orders = t1.id_orders
+    LEFT JOIN main.main.t_items t3 ON t3.id_items = t1.id_items
+    INNER JOIN main.main.t_items_1 t4 ON t4.id_items_1 = t1.id_items_1
+    LEFT JOIN main.main.t_promotions_simples t6 ON t6.id_promotions_simples = t1.id_promotions_simples
+    INNER JOIN main.main.t_stores t8 ON t8.id_stores = t2.id_stores_created
+    INNER JOIN main.main.t_items_2 t9 ON t9.id_items_2 = t4.id_items_2
+    INNER JOIN main.main.t_orders_types t10 ON t10.id_orders_types = t2.id_orders_types
+    INNER JOIN main.main.t_orders_statuses t11 ON t11.id_orders_statuses = t2.id_orders_statuses
+    INNER JOIN main.main.t_channels t12 ON t12.id_channels = t2.id_channels
+    INNER JOIN main.main.t_orders_shipments t13 ON t13.id_orders_shipments = t1.id_orders_shipments
+    INNER JOIN main.main.t_stores AS t5 ON t5.id_stores = t13.id_stores_stocks
+    LEFT JOIN main.main.t_stores_locations t31 ON t31.id_stores_locations = t3.id_stores_locations
+    LEFT JOIN main.main.t_orders_items_rels_rmas_reasons t35 ON t35.id_orders_items = t1.id_orders_items
+    LEFT JOIN main.main.t_rmas_reasons t36 ON t36.id_rmas_reasons = t35.id_rmas_reasons -- BRAND
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t14 ON t14.id_items_2 = t4.id_items_2
+    AND t14.id_items_2_taxonomies = 1
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t15 ON t15.id_items_2_taxonomies_terms = t14.id_items_2_taxonomies_terms -- SUPPLIER
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t16 ON t16.id_items_2 = t4.id_items_2
+    AND t16.id_items_2_taxonomies = 2
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t17 ON t17.id_items_2_taxonomies_terms = t16.id_items_2_taxonomies_terms -- UNIT
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t25 ON t25.id_items_2 = t4.id_items_2
+    AND t25.id_items_2_taxonomies = 3
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t26 ON t26.id_items_2_taxonomies_terms = t25.id_items_2_taxonomies_terms -- SIZE
+    LEFT JOIN main.main.t_items_1_taxonomies_terms_rels_items_1 t28 ON t28.id_items_1 = t4.id_items_1
+    AND t28.id_items_1_taxonomies = 1
+    LEFT JOIN main.main.t_items_1_taxonomies_terms t20 ON t20.id_items_1_taxonomies_terms = t28.id_items_1_taxonomies_terms -- COLOR
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t18 ON t18.id_items_2 = t4.id_items_2
+    AND t18.id_items_2_taxonomies = 5
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t19 ON t19.id_items_2_taxonomies_terms = t18.id_items_2_taxonomies_terms -- IMAGE
+    LEFT JOIN main.main.t_items_2_images t27 ON t27.id_items_2 = t4.id_items_2
+    AND t27.width = 30
+    AND t27.height = 30
+    AND t27.weight = 1
+    LEFT JOIN main.main.t_users t29 ON t29.id_users = t1.id_users_sellers
+    LEFT JOIN main.main.t_users t30 ON t30.id_users = t1.id_users_leaders
+
+    LEFT JOIN main.main.t_stores t32 ON t32.id_stores = t2.id_stores_documented
+    INNER JOIN main.main.t_commerces t33 ON t33.id_commerces = t8.id_commerces 
+    
+    --buyers
+    LEFT JOIN main.main.t_users t34 ON t34.id_users = t2.id_users
+    LEFT JOIN main.main.t_users_genders t35 ON t35.id_users_genders = t34.id_users_genders
+    
+    -- ubigeos 
+    LEFT JOIN main.main.t_users_addresses_books t36 ON t36.id_users_addresses_books = t42.id_users_addresses_books
+    LEFT JOIN main.main.t_stores t37 ON t37.id_stores = t36.id_stores_deliveries
+    LEFT JOIN main.main.t_countries_ubigeos t38 ON t38.id_countries_ubigeos = t37.id_countries_ubigeos
+    LEFT JOIN main.main.t_countries_ubigeos t39 ON t39.eid_countries_ubigeos = CONCAT(SUBSTRING(t38.eid_countries_ubigeos, 1, 4), '00')
+    LEFT JOIN main.main.t_countries_ubigeos t40 ON t40.eid_countries_ubigeos = CONCAT(SUBSTRING(t38.eid_countries_ubigeos, 1, 2), '0000')
+    LEFT JOIN main.main.t_users_addresses t41 ON t41.id_users_addresses = t36.id_users_addresses
+    LEFT JOIN main.main.t_countries_ubigeos t42 ON t42.id_countries_ubigeos = t41.id_countries_ubigeos
+    LEFT JOIN main.main.t_countries_ubigeos t43 ON t43.eid_countries_ubigeos = CONCAT(SUBSTRING(t42.eid_countries_ubigeos, 1, 4), '00')
+    LEFT JOIN main.main.t_countries_ubigeos t44 ON t44.eid_countries_ubigeos = CONCAT(SUBSTRING(t42.eid_countries_ubigeos, 1, 2), '0000')
+
+WITH NO SCHEMA BINDING;

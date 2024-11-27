@@ -1,0 +1,19 @@
+        SET @response = lambda_async(CONCAT('arn:aws:lambda:us-east-1:' , main.AWS_ACCOUNT_ID() , ':function:ExecuteStoredProcedureRedshift'), JSON_OBJECT('stored_procedure','sp_set_articulos_hijos_diario_v1'));
+
+UID Orden
+https://tutati.com/pe/orders/detail?uid_orders=<<uid_orders>>
+
+UID Orden paquete
+https://tutati.com/pe/orders-shipments/detail?uid_orders_shipments=<<uid_orders_shipments>>
+
+UID Producto (LPN)
+https://tutati.com/pe/items/detail?uid_items=<<uid_items>>
+
+UID Producto hijo
+https://tutati.com/pe/items-1/detail?uid_items_1=<<uid_items_1>>
+
+UID Producto padre
+https://tutati.com/pe/items-2/detail?uid_items_2=<<uid_items_2>>
+
+UID Promoción simple
+https://tutati.com/pe/promotions-simples/detail?uid_promotions_simples=<<uid_promotions_simples>>

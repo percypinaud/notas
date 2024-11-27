@@ -1,0 +1,264 @@
+CREATE
+OR REPLACE VIEW v_items_2_rels_stores AS
+
+WITH 
+    v_promotions 
+AS (
+    SELECT
+        t1.id_items_2,
+        t1.id_promotions_simples,
+        t1.price,
+        t1.original_price,
+        t1.real_price,
+        t2.value,
+        t2.unit,
+        t1.id_stores,
+        t2.value_supplier
+    FROM
+        main.main.t_items_2_rels_stores t1
+        LEFT JOIN main.main.t_promotions_simples t2 ON t2.id_promotions_simples = t1.id_promotions_simples
+)
+
+SELECT
+    t1.id_items_2,
+    t1.uid_items_2,
+    t1.model,
+    t1.eid_items_2,
+    t1.mpn AS translate_code,
+    t1.short_description AS description,
+    t1.active,
+    COALESCE(t1.deleted, 0) AS deleted,
+    t1.season,
+    t1.season_year,
+    t1.comment,
+    t1.long_description,
+    t1.photos_quantity,
+    t1_2.item_2_taxonomy_term suppliers,
+    t1_4.item_2_taxonomy_term brands,
+    t1_6.item_2_taxonomy_term units,
+    t1_8.item_2_taxonomy_term color,
+    t1_14.item_2_taxonomy_term material,
+    REGEXP_REPLACE(t1_16.item_2_taxonomy_term, '[a-zA-z_ ]', '') AS taco,
+    t1_18.item_2_taxonomy_term templates,
+    CASE
+    WHEN UPPER(t1.source) = 'CA' THEN 'COMPRA ASEGURADA'
+    WHEN t1.consignment > 0 THEN 'CONSIGNADO'
+    WHEN UPPER(t1_2.item_2_taxonomy_term) IN ('LOREANI', 'SASILVA') THEN 'NACIONAL'
+    WHEN t1.id_commerces <> '1' THEN 'B2B'
+    ELSE UPPER(t1_20.item_2_taxonomy_term) END AS source,
+    t7.item_2_hierarchy hierarchy_1,
+    t6.item_2_hierarchy hierarchy_2,
+    t5.item_2_hierarchy hierarchy_3,
+    t4.item_2_hierarchy hierarchy_4,
+    t2.id_commerces,
+    t2.commerce,
+    t11.item_2_taxonomy_term sole,
+    t13.item_2_taxonomy_term lining,
+    t38.original_price,
+    t38.real_price,
+    CASE
+    WHEN t38.tax_rate > 0 THEN 1
+    ELSE 0 END AS tax_rate,
+    t38.price,
+    t38.id_promotions_simples,
+    t40.id_stores,
+    t40.store,
+    t38.transit_stock,
+    t38.real_stock,
+    t38.stock,
+    t38.consignment,
+    t38.invented,
+    t38.sample,
+    t38.failed,
+    t41.quantity_sold,
+    TO_TIMESTAMP(t1.cuid_inserted, 'YYYYMMDDHH24MISSUS') AT TIME ZONE 'America/Lima' AS timestamp_inserted,
+    TO_TIMESTAMP(t1.cuid_updated, 'YYYYMMDDHH24MISSUS') AT TIME ZONE 'America/Lima' AS timestamp_updated,
+
+    -- Tienda 41 = Valores promocionales
+    CASE 
+        WHEN (t42.value = 0 OR t42.value IS NULL) 
+            AND ROUND((t38.original_price - t38.price) / t38.original_price, 2) > 0.0001 THEN 
+            'OFERTA'
+
+        WHEN (t42.value = 0 OR t42.value IS NULL) 
+            AND ROUND((t38.original_price - t38.price) / t38.original_price, 2) <= 0.0001 THEN 
+            'SIN PROMO'
+
+        WHEN t42.unit = 'PEN' THEN 
+            CONCAT(ROUND(100 * (1 - (t38.price / t38.real_price)), 0)::TEXT, ' %')
+    ELSE 
+        t42.value::TEXT ||' '|| t42.unit
+    END AS prom_column,
+
+    t42.price price_prom,
+
+    -- Tienda 18 = Promo Iquitos
+
+    CASE 
+    WHEN t43.value IS NULL OR t43.value = 0 THEN 
+        CASE 
+            WHEN ROUND((t38.original_price - t43.price) / t38.original_price, 2) > 0.0001 THEN 
+                'OFERTA'
+            ELSE 
+                'SIN PROMO'
+        END
+    ELSE 
+       t43.value::TEXT || ' '|| t43.unit 
+    END AS prom_iquitos,
+
+    t43.price price_iquitos,
+
+    -- Tienda 68 = Promo_Platanitos_Fisico
+    CASE 
+    WHEN  t44.value IS NULL OR  t44.value = 0 THEN 
+        CASE 
+            WHEN ROUND((t38.original_price - t44.price) / t38.original_price , 2) > 0.0001 THEN 
+                'OFERTA'
+            ELSE 
+                'SIN PROMO'
+        END
+    ELSE 
+        t44.value::TEXT || ' ' || t44.unit
+
+    END AS prom_physical_platanitos,
+
+    t44.price price_physical_platanitos,
+
+    -- Tienda 194 = Promo_Platanitos_Home
+    CASE 
+    WHEN t45.value = 0 OR t45.value IS NULL THEN 
+        CASE 
+        WHEN ROUND((t38.original_price - t45.price) / t38.original_price, 2) > 0.0001 THEN 
+            'OFERTA'
+        ELSE 
+            'SIN PROMO'
+        END
+    ELSE 
+        t45.value::TEXT ||' '|| t45.unit
+    END AS prom_platanitos_home,
+
+    t45.price price_platanitos_home,
+
+    -- Tienda 140 = Promo_Platanitos_Kids
+
+    CASE 
+    WHEN t46.value  = 0 OR t46.value  IS NULL THEN 
+        CASE 
+            WHEN ROUND((t38.original_price - t46.value ) / t38.original_price, 2) > 0.0001 THEN 
+                'OFERTA'
+            ELSE 
+                'SIN PROMO'
+        END
+    ELSE 
+        t46.value::TEXT ||' '|| t46.unit
+    END AS prom_platanitos_kids,
+
+    t46.price price_platanitos_kids
+
+FROM
+    main.main.t_items_2 t1
+    LEFT JOIN main.main.t_commerces t2 ON t2.id_commerces = t1.id_commerces
+    LEFT JOIN main.main.t_items_2_hierarchies t4 ON t4.id_items_2_hierarchies = t1.id_items_2_hierarchies
+    LEFT JOIN main.main.t_items_2_hierarchies t5 ON t5.id_items_2_hierarchies = t4.id_items_2_hierarchies_parents
+    LEFT JOIN main.main.t_items_2_hierarchies t6 ON t6.id_items_2_hierarchies = t5.id_items_2_hierarchies_parents
+    LEFT JOIN main.main.t_items_2_hierarchies t7 ON t7.id_items_2_hierarchies = t6.id_items_2_hierarchies_parents
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_1 ON t1.id_items_2 = t1_1.id_items_2
+    AND t1_1.id_items_2_taxonomies = 1 --  Proveedores
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_2 ON t1_2.id_items_2_taxonomies_terms = t1_1.id_items_2_taxonomies_terms
+    AND t1_2.id_items_2_taxonomies = t1_1.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_3 ON t1.id_items_2 = t1_3.id_items_2
+    AND t1_3.id_items_2_taxonomies = 2 --  Marcas
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_4 ON t1_4.id_items_2_taxonomies_terms = t1_3.id_items_2_taxonomies_terms
+    AND t1_4.id_items_2_taxonomies = t1_3.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_5 ON t1.id_items_2 = t1_5.id_items_2
+    AND t1_5.id_items_2_taxonomies = 3 --  Unidades
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_6 ON t1_6.id_items_2_taxonomies_terms = t1_5.id_items_2_taxonomies_terms
+    AND t1_6.id_items_2_taxonomies = t1_5.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_7 ON t1.id_items_2 = t1_7.id_items_2
+    AND t1_7.id_items_2_taxonomies = 5 --  Color
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_8 ON t1_8.id_items_2_taxonomies_terms = t1_7.id_items_2_taxonomies_terms
+    AND t1_8.id_items_2_taxonomies = t1_7.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_9 ON t1.id_items_2 = t1_9.id_items_2
+    AND t1_9.id_items_2_taxonomies = 6 --  Temporada
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_10 ON t1_10.id_items_2_taxonomies_terms = t1_9.id_items_2_taxonomies_terms
+    AND t1_10.id_items_2_taxonomies = t1_9.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_11 ON t1.id_items_2 = t1_11.id_items_2
+    AND t1_11.id_items_2_taxonomies = 7 --  Año
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_12 ON t1_12.id_items_2_taxonomies_terms = t1_11.id_items_2_taxonomies_terms
+    AND t1_12.id_items_2_taxonomies = t1_11.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_13 ON t1.id_items_2 = t1_13.id_items_2
+    AND t1_13.id_items_2_taxonomies = 8 --  Material
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_14 ON t1_14.id_items_2_taxonomies_terms = t1_13.id_items_2_taxonomies_terms
+    AND t1_14.id_items_2_taxonomies = t1_13.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_15 ON t1.id_items_2 = t1_15.id_items_2
+    AND t1_15.id_items_2_taxonomies = 9 --  Taco
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_16 ON t1_16.id_items_2_taxonomies_terms = t1_15.id_items_2_taxonomies_terms
+    AND t1_16.id_items_2_taxonomies = t1_15.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_17 ON t1.id_items_2 = t1_17.id_items_2
+    AND t1_17.id_items_2_taxonomies = 11 -- Plantilla
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_18 ON t1_18.id_items_2_taxonomies_terms = t1_17.id_items_2_taxonomies_terms
+    AND t1_18.id_items_2_taxonomies = t1_17.id_items_2_taxonomies
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t1_19 ON t1.id_items_2 = t1_19.id_items_2
+    AND t1_19.id_items_2_taxonomies = 13 -- Procedencia
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t1_20 ON t1_20.id_items_2_taxonomies_terms = t1_19.id_items_2_taxonomies_terms
+    AND t1_20.id_items_2_taxonomies = t1_19.id_items_2_taxonomies -- SOLE
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t10 ON t10.id_items_2 = t1.id_items_2
+    AND t10.id_items_2_taxonomies = 10
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t11 ON t11.id_items_2_taxonomies_terms = t10.id_items_2_taxonomies_terms -- LININGS
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t12 ON t12.id_items_2 = t1.id_items_2
+    AND t12.id_items_2_taxonomies = 12
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t13 ON t13.id_items_2_taxonomies_terms = t12.id_items_2_taxonomies_terms
+    LEFT JOIN main.main.t_items_2_rels_stores t38 ON t38.id_items_2 = t1.id_items_2
+    LEFT JOIN main.main.t_stores t40 ON t40.id_stores = t38.id_stores
+    LEFT JOIN (
+        SELECT
+            t1.eid_items_2,
+            t1.id_stores,
+            SUM(t1.quantity) AS quantity_sold
+        FROM
+            (
+                SELECT
+                    'ORDEN' tipo_documento,
+                    t9.id_stores,
+                    t7.eid_items_2,
+                    COUNT(1) AS quantity
+                FROM
+                    main.main.t_orders_items t1
+                    INNER JOIN main.main.t_orders t2 ON t2.id_orders = t1.id_orders
+                    AND t2.id_orders_statuses IN (2, 3, 4)
+                    INNER JOIN main.main.t_items_1 t6 ON t6.id_items_1 = t1.id_items_1
+                    INNER JOIN main.main.t_items_2 t7 ON t7.id_items_2 = t6.id_items_2
+                    INNER JOIN main.main.t_orders_statuses t8 ON t8.id_orders_statuses = t2.id_orders_statuses
+                    INNER JOIN main.main.t_stores t9 ON t9.id_stores = t2.id_stores_documented
+                GROUP BY
+                    t9.id_stores,
+                    t7.eid_items_2
+                UNION ALL
+                SELECT
+                    'RMA' tipo_documento,
+                    t9.id_stores,
+                    t7.eid_items_2,
+                    - COUNT(1) AS quantity
+                FROM
+                    main.main.t_rmas_items t1
+                    INNER JOIN main.main.t_rmas t2 ON t2.id_rmas = t1.id_rmas
+                    AND t2.id_rmas_statuses IN (2, 3, 4, 5)
+                    INNER JOIN main.main.t_items_1 t6 ON t6.id_items_1 = t1.id_items_1
+                    INNER JOIN main.main.t_items_2 t7 ON t7.id_items_2 = t6.id_items_2
+                    INNER JOIN main.main.t_rmas_statuses t8 ON t8.id_rmas_statuses = t2.id_rmas_statuses
+                    INNER JOIN main.main.t_stores t9 ON t9.id_stores = t2.id_stores_documented
+                GROUP BY
+                    t9.id_stores,
+                    t7.eid_items_2
+            ) t1
+        GROUP BY
+            t1.eid_items_2,
+            t1.id_stores
+    ) t41 ON t41.eid_items_2 = t1.eid_items_2 AND t41.id_stores = t38.id_stores 
+    LEFT JOIN v_promotions t42 ON t42.id_items_2 = t1.id_items_2 AND t42.id_stores = 41 
+    LEFT JOIN v_promotions t43 ON t43.id_items_2 = t1.id_items_2 AND t43.id_stores = 18 
+    LEFT JOIN v_promotions t44 ON t44.id_items_2 = t1.id_items_2 AND t44.id_stores = 68 
+    LEFT JOIN v_promotions t45 ON t45.id_items_2 = t1.id_items_2 AND t45.id_stores = 194 
+    LEFT JOIN v_promotions t46 ON t46.id_items_2 = t1.id_items_2 AND t46.id_stores = 140 
+
+WITH NO SCHEMA BINDING;

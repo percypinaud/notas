@@ -1,0 +1,298 @@
+
+CREATE
+OR REPLACE VIEW v_items_1_rels_stores AS
+    SELECT
+        t1.id_items_2, -- Articulo_Padre_ID,
+        t1.uid_items_2, -- SKU_Padre,
+        t1.id_items_1, -- Articulo_Hijo_ID,
+        '' condititon_commercial, -- Condicion_Comercial
+        SUM(t1.real_stock) real_stock,-- Stock_Real
+        SUM(t1.stock) stock, -- Stock
+        SUM(t1.transit_stock) transit_stock, -- Stock_Transito
+        SUM(t1.consignment) consignment, -- Stock_Consignado
+        SUM(t1.invented) invented, -- Stock_Inventado
+        SUM(t1.sample) sample, -- Stock_Muestra
+        SUM(t1.failed) failed, -- Stock_Fallado
+        AVG(t1.inter_cost) inter_cost, -- Costo_Inter
+        SUM(t1.sale) sale, -- Venta
+        SUM(t1.purchase) purchase, -- Compra
+        (SUM(t1.real_stock) + SUM(t1.transit_stock)) stock_total, -- Stock_Total
+        MAX(t1.old_days) old_days, -- ANTIGUEDAD_DIAS
+
+        t2.ean, -- EAN
+        t2.eid_items_1, -- Cod_hijo_Propio,
+        
+        CASE 
+            WHEN t3.source = 'CONSIGNADO' THEN t2.eid_items_1 
+            ELSE COALESCE(t8.eid, t2.eid_items_1) 
+        END eid_items_1_second ,-- Cod_hijo
+        t3.eid_items_2, -- Cod_Padre,
+        t3.commerce, -- Comercio
+        t3.model, -- Modelo
+        t3.sap_model, -- Modelo_Largo
+        t3.translate_code, -- Codigo_Traductor
+        t3.description, -- Descripcion
+        
+        t3.hierarchy_1, -- Jerarquia_1
+        t3.hierarchy_2, -- Jerarquia_2
+        t3.hierarchy_3, -- Jerarquia_3
+        t3.hierarchy_4, -- Jerarquia_4
+        t3.source, -- Procedencia
+        t3.suppliers, -- Proveedor
+        t3.brands, -- Marca
+        t3.genders,
+        t3.color, -- Color
+        t3.material, -- Material
+        t3.taco, -- Taco
+        t3.season_year, -- Ano_Temporada
+        t3.season, -- Temporada
+        t2.stock_up type_product, -- Tipo_Producto
+        t3.units, -- Unidad
+        t3.original_price, -- Precio_Original
+        t3.price, -- Precio
+        t3.real_price, -- Precio_Regular
+        (t3.original_price - t3.price) dif_price, -- DIF_Precio
+        AVG(COALESCE(t4.last_cost, t3.real_cost)) last_cost, -- Ultimo_Costo
+        AVG(t1.fob_cost) fob_cost, -- Costo_Fob
+        AVG(t3.real_cost) real_cost, -- Costo_Real
+        MIN(t3.first_purchase) first_purchase,  -- Primer_Ingreso
+        MAX(t3.last_purchase) last_purchase, -- Ultimo_Ingreso
+        t3.active,
+
+        -- AVG(t3.FOB_Cost_USD), -- Costo_Fob_USD
+
+        CASE
+            WHEN (t5.value IS NULL OR t5.value = 0) AND ROUND((t3.original_price - t3.price)/t3.original_price,2)>0.0001 THEN 'OFERTA'
+            WHEN (t5.value IS NULL OR t5.value = 0) AND ROUND((t3.original_price - t3.price)/t3.original_price,2)<=0.0001 THEN 'SIN PROMO'
+            WHEN t5.unit = 'PEN' THEN ROUND(FLOOR(100*(1-(t3.price/t3.real_price))), 0)::varchar || ' %' 
+            ELSE t5.value || ' ' || REPLACE(t5.unit,'-','')
+        END value_prom, -- Valores_Promociones
+
+        COUNT(DISTINCT t5.rank) quantity_prom,  -- Cantidad_Promociones
+        COALESCE(t7.item_1_taxonomy_term,'-') size, -- Talla
+    
+        MAX(t5.timestamp_start) timestamp_start, -- Promo_Fecha_Inicio
+        MAX(t5.timestamp_end) timestamp_end, -- Promo_Fecha_Fin
+    
+        CASE 
+            WHEN MAX(t9.id_orders_items) IS NOT NULL THEN 'SI' ELSE 'NO'
+        END AS have_sale
+    FROM 
+    ( 
+        SELECT
+            t1.id_items_1,
+            t1.id_items_2,
+            t2.uid_items_2,
+            SUM(COALESCE(t1.real_stock, 0)) AS real_stock,
+            SUM(COALESCE(t1.stock, 0)) AS stock,
+            SUM(CASE WHEN t6.id_items IS NULL THEN COALESCE(t1.transit_stock, 0) ELSE 0 END) AS transit_stock,
+            SUM(COALESCE(t1.consignment, 0)) AS consignment,
+            SUM(COALESCE(t1.invented, 0)) AS invented,
+            SUM(COALESCE(t1.sample, 0)) AS sample,
+            SUM(
+                CASE 
+                    WHEN t1.real_stock = 0 AND t1.stock = 0 THEN 0
+                    ELSE COALESCE(t1.failed, 0)
+                END
+            ) AS failed,
+            AVG(COALESCE(t3.fob_cost, 0)) AS fob_cost,
+            AVG(COALESCE(t5.prices_intercompany, COALESCE(t3.inter_cost, COALESCE(t3.inter_cost, 0)))) AS inter_cost,
+            0 AS sale,
+            SUM(
+                CASE 
+                    WHEN COALESCE(t1.real_stock, 0) = 0 THEN 
+                        CASE 
+                            WHEN t1.lpn IS NOT NULL THEN 1
+                            ELSE 0 
+                        END
+                    ELSE COALESCE(t1.real_stock, 0)
+                END
+            ) AS purchase,
+            MAX(DATEDIFF('day',CURRENT_DATE,TO_TIMESTAMP(t1.cuid_inserted, 'YYYYMMDDHH24MISSUS') AT TIME ZONE 'America/Lima')) AS old_days
+        FROM main.main.t_items t1
+        LEFT JOIN main.main.t_items_2 t2 on t2.id_items_2 = t1.id_items_2
+        LEFT JOIN main.main.t_items_1_costs t3 ON t3.id_items_1 = t1.id_items_1
+        LEFT JOIN main.main.t_items_1 t4 ON t3.id_items_1 = t1.id_items_1
+        LEFT JOIN main.main.t_items_commission t5 ON t5.id_items_2 = t1.id_items_2
+        LEFT JOIN (
+            SELECT t1.id_items 
+            FROM main.main.t_transfers_items t1
+            INNER JOIN main.main.t_transfers t2 ON t2.id_transfers = t1.id_transfers AND t2.id_stores_inputs = '114' AND t2.id_stores_warehouses_inputs = '7'
+            GROUP BY t1.id_items
+        ) t6 ON t6.id_items = t1.id_items
+        WHERE t1.invented = 0
+        AND NOT EXISTS (SELECT 1 FROM main.main.t_items_movements t3 WHERE t3.id_items = t1.id_items AND LEFT(t3.eid, 3) = '492')
+        GROUP BY 
+            t1.id_items_1,
+            t1.id_items_2,
+            t2.uid_items_2
+
+        UNION ALL
+
+        SELECT
+            t1.id_items_1,
+            t1.id_items_2,
+            t2.uid_items_2,
+            0 AS real_stock,
+            0 AS stock ,
+            0 AS transit_stock,
+            0 AS consignment,
+            0 AS invented,
+            0 AS sample,
+            0 AS failed,
+            NULL AS fob_cost,
+            NULL AS inter_cost,
+            SUM(
+                CASE 
+                    WHEN t1.lpn IS NOT NULL 
+                        AND COALESCE(t1.real_stock, 0) = 0 
+                        AND COALESCE(t1.transit_stock, 0) = 0 
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS sale,
+            0 AS purchase,
+            MAX(DATEDIFF('day',CURRENT_DATE,TO_TIMESTAMP(t1.cuid_inserted, 'YYYYMMDDHH24MISSUS') AT TIME ZONE 'America/Lima')) AS old_days
+        FROM main.main.t_items t1
+        LEFT JOIN main.main.t_items_2 t2 on t2.id_items_2 = t1.id_items_2
+        WHERE t1.invented = 0
+        GROUP BY 
+            t1.id_items_1,
+            t1.id_items_2,
+            t2.uid_items_2
+    ) t1 
+    INNER JOIN main.main.t_items_1 t2 ON t2.id_items_1 = t1.id_items_1
+    INNER JOIN (
+        SELECT DISTINCT 
+            t1.id_items_2,
+            t1.eid_items_2, -- Cod_Padre,
+            t1.commerce, -- Comercio
+            t1.model, -- Modelo
+            t1.sap_model, -- Modelo_Largo
+            t1.translate_code, -- Codigo_Traductor
+            t1.description, -- Descripcion
+            
+            t1.hierarchy_1, -- Jerarquia_1
+            t1.hierarchy_2, -- Jerarquia_2
+            t1.hierarchy_3, -- Jerarquia_3
+            t1.hierarchy_4, -- Jerarquia_4
+            t1.source, -- Procedencia
+            t1.suppliers, -- Proveedor
+            t1.brands, -- Marca
+            t1.genders,
+            t1.color, -- Color
+            t1.material, -- Material
+            t1.taco, -- Taco
+            t1.season_year, -- Ano_Temporada
+            t1.season, -- Temporada
+            t1.units, -- Unidad
+            t1.original_price, -- Precio_Original
+            t1.price, -- Precio
+            t1.real_price, -- Precio_Regular
+            t1.real_cost, -- Costo_Real
+            t1.first_purchase, -- Primer_Ingreso
+            t1.last_purchase, -- Ultimo_Ingreso
+            t1.active 
+        FROM secondary.public.v_items_2 t1 
+    ) t3 ON t3.id_items_2 = t1.id_items_2
+    LEFT JOIN (
+        SELECT
+            t1.id_items_1,
+            t1.id_items_2,
+            t2.last_purchase,
+            t2.last_cost
+        FROM
+            main.main.t_items_1 t1
+            INNER JOIN (
+                    SELECT
+                        t1.id_items_2,
+                        TO_DATE(CAST(MAX(t3.last_purchase) AS VARCHAR), 'YYYYMMDD') AS last_purchase,
+                        AVG(t3.last_cost) last_cost
+                    FROM
+                        main.main.t_items_1 t1
+                        LEFT JOIN main.main.t_items_1_rels_holdings t2 ON t2.id_items_1 = t1.id_items_1
+                        INNER JOIN secondary.sapb1.t_items_purchases_sap t3 ON t3.material = NVL(t2.eid, t1.eid_items_1)
+                    GROUP BY
+                        t1.id_items_2
+                ) t2 ON t2.id_items_2 = t1.id_items_2
+    ) t4 ON t4.id_items_1 = t1.id_items_1
+    LEFT JOIN (
+        SELECT
+            1 rank,
+            t1.id_items_2,
+            t1.price,
+            t1.original_price,
+            t1.real_price,
+            t2.value,
+            t2.unit,
+            t1.id_stores,
+            t2.value_supplier,
+            t2.timestamp_start,
+            t2.timestamp_end
+        FROM
+            main.main.t_items_2_rels_stores t1
+            LEFT JOIN main.main.t_promotions_simples t2 ON t2.id_promotions_simples = t1.id_promotions_simples 
+        WHERE
+            t1.id_items_2 IS NOT NULL
+            AND t1.id_stores = 41 
+    ) t5 ON t5.id_items_2 = t1.id_items_2  -- AND t5.id_stores = 41 AND t9.RANK = 1
+    -- SIZE
+    LEFT JOIN main.main.t_items_1_taxonomies_terms_rels_items_1 t6 ON t6.id_items_1 = t1.id_items_1 AND t6.id_items_1_taxonomies = 1
+    LEFT JOIN main.main.t_items_1_taxonomies_terms t7 ON t7.id_items_1_taxonomies_terms = t6.id_items_1_taxonomies_terms
+    LEFT JOIN main.main.t_items_1_rels_holdings t8 ON t8.id_items_1 = t1.id_items_1 AND t8.id_commerces = 1
+    LEFT JOIN 
+    (
+        SELECT 
+            t1.id_items_1,
+            MAX(t1.id_orders_items) AS id_orders_items 
+        FROM main.main.t_orders_items t1
+        INNER JOIN main.main.t_orders t2 ON t2.id_orders = t1.id_orders
+        WHERE t2.id_orders_statuses IN ('2','3','4')
+        AND t2.eid_orders IS NOT NULL
+        AND NOT EXISTS (
+            SELECT t3.id_rmas 
+            FROM main.main.t_rmas t3 
+            WHERE t3.id_orders = t2.id_orders
+            AND t3.id_rmas_statuses IN ('2','3','4','5')
+        )
+        GROUP BY t1.id_items_1
+    ) t9 on t9.id_items_1 = t1.id_items_1 
+
+    GROUP BY 
+    t1.id_items_2,
+    t1.uid_items_2,
+    t1.id_items_1,
+    t2.ean,
+    t2.eid_items_1,
+    t3.source,
+    t8.eid,
+    t3.eid_items_2,
+    t3.commerce,
+    t3.model,
+    t3.sap_model,
+    t3.translate_code,
+    t3.description,
+    
+    t3.hierarchy_1, 
+    t3.hierarchy_2,
+    t3.hierarchy_3, 
+    t3.hierarchy_4, 
+    t3.source,
+    t3.suppliers, 
+    t3.brands, 
+    t3.genders,
+    t3.color, 
+    t3.material, 
+    t3.taco,
+    t3.season_year, 
+    t3.season,
+    t2.stock_up, 
+    t3.units, 
+    t3.original_price, 
+    t3.price, 
+    t3.real_price,
+    t3.active,
+    t5.value,
+    t5.unit,
+    t7.item_1_taxonomy_term 
+WITH NO SCHEMA BINDING;

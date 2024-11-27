@@ -1,0 +1,35 @@
+CREATE TABLE t_prices_recived (
+    eid_items_1 varchar(256),
+    eid_items_2 varchar(256),
+    model varchar(256),
+	quantity INTEGER,
+    cost_fob decimal(10,2),
+    total decimal(10,2)
+)
+
+COPY t_prices_recived
+FROM 's3://015027864493-ultra-banana/bigquery_etls/precio_calzado_yeseni.csv'
+IAM_ROLE 'arn:aws:iam::015027864493:role/service-role/AmazonRedshift-CommandsAccessRole-20240619T170834'
+DELIMITER ';'
+IGNOREHEADER 1
+BLANKSASNULL;
+
+COPY t_prices_recived
+FROM 's3://015027864493-ultra-banana/bigquery_etls/precio_carteras_yeseni.csv'
+IAM_ROLE 'arn:aws:iam::015027864493:role/service-role/AmazonRedshift-CommandsAccessRole-20240619T170834'
+DELIMITER ';'
+IGNOREHEADER 1
+BLANKSASNULL;
+
+select * From sys_load_error_detail
+
+select *
+From secondary_cl.public.t_prices_recived
+where eid_items_2 = 10285630
+
+select * from 
+main_cl.main.t_items_2 t1
+where eid_items_2 = 10285630
+
+
+

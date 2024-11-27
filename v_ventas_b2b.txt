@@ -1,0 +1,71 @@
+CREATE
+OR REPLACE VIEW v_ventas_b2b AS
+    SELECT
+        t1.id_orders,
+        t1.uid_orders,
+        t1.eid_orders,
+        --CASE WHEN t15.id_commerces = t9.id_commerces AND t9.id_commerces = t11.id_commerces THEN 'si' ELSE 'no'  END AS show,
+        t9.id_commerces id_commerces_partnerships ,
+        t15.id_commerces,
+        t16.commerce,
+        t1.timestamp_documented,
+        t12.id_purchases_orders,
+        t5.eid_items_1,
+        t5.EAN,
+        t15.model,
+        t14.prices_intercompany,
+        t10.order_status,
+        t2.id_items_1 quantity_sold,
+        t2.total,
+        t20.real_cost real_cost_items_1,
+        t22.cost,
+        t21.prices_intercompany prices_intercompany_comission,
+        t2.real_cost real_cost_orders_items,
+        t6.id_stores
+        -- AVG(
+        --     CASE WHEN COALESCE(t20.real_cost, 0) = 0 THEN
+        --     CASE WHEN COALESCE(t20.real_cost, 0) = 0 THEN
+        --     CASE WHEN COALESCE(t22.cost, 0) = 0 THEN COALESCE(t21.prices_intercompany, 0) 
+        --     ELSE t22.cost END
+        --     ELSE COALESCE(t2.real_cost, 0) END
+        --     ELSE t20.real_cost END
+        -- ) AS real_cost,
+    FROM
+        main.main.t_orders t1
+        INNER JOIN main.main.t_orders_items t2 ON t2.id_orders = t1.id_orders
+        INNER JOIN main.main.t_orders_shipments t3 ON t3.id_orders = t2.id_orders
+        INNER JOIN main.main.t_items t4 ON t4.id_items = t2.id_items 
+        INNER JOIN main.main.t_items_1 t5 ON t5.id_items_1 = t4.id_items_1 AND t5.stock_up = 1
+        
+        INNER JOIN main.main.t_stores t6 ON t6.id_stores = t1.id_stores_created	
+        INNER JOIN main.main.t_partnerships t7 ON t7.id_partnerships = t6.id_partnerships AND t7.id_commerces = 1
+        
+        INNER JOIN main.main.t_stores t8 ON t8.id_stores = t3.id_stores_stocks 
+        INNER JOIN main.main.t_partnerships t9 ON t9.id_partnerships = t8.id_partnerships AND t9.id_commerces = 1
+        INNER JOIN main.main.t_orders_statuses t10 ON t10.id_orders_statuses = t1.id_orders_statuses 
+        LEFT JOIN main.main.t_orders_rels_orders t11 ON t11.id_orders_parents = t1.id_orders AND t11.id_commerces <> 1
+        LEFT JOIN main.main.t_purchases_orders t12 ON t12.id_purchases_orders = t11.id_purchases_orders AND t12.id_partnerships_destination = t9.id_partnerships 
+        LEFT JOIN main.main.t_purchases_orders_items t13 ON t13.id_purchases_orders = t12.id_purchases_orders AND t13.id_items = t2.id_items
+        
+        LEFT JOIN main.main.t_items_commission t14 ON t14.id_items_2 = t5.id_items_2
+        INNER JOIN main.main.t_items_2 t15 ON t15.id_items_2 = t5.id_items_2 AND t15.id_commerces <> 1
+        LEFT JOIN main.main.t_commerces t16 ON t16.id_commerces = t15.id_commerces 
+        LEFT JOIN main.main.t_commerces t17 ON t17.id_commerces = t9.id_commerces
+        LEFT JOIN main.main.t_commerces t18 ON t18.id_commerces = t11.id_commerces
+        
+        --Costos
+        INNER JOIN main.main.t_items t19 ON t19.id_items = t2.id_items
+        LEFT JOIN main.main.t_items_1_costs t20 ON t20.id_items_1 = t5.id_items_1 
+        LEFT JOIN main.main.t_items_commission t21 ON t21.id_items_2 = t5.id_items_2
+        LEFT JOIN 
+        (
+            SELECT t1.id_items ,avg(t1.cost) cost 
+            FROM main.main.t_purchases_orders_items t1
+            where t1.id_orders_shipments is not null
+            group by t1.id_items
+        ) t22 ON t22.id_items = t2.id_items 
+        
+        WHERE t1.id_orders_statuses >= 2
+        AND t1.eid_orders IS NOT NULL 
+        AND (t13.id_purchases_orders IS NOT NULL OR t11.id_purchases_orders iS NULL)
+WITH NO SCHEMA BINDING;

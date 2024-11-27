@@ -1,0 +1,54 @@
+ifelse(
+    ({value_41} = 0 OR isNull({value_41})) 
+        AND round(({original_price} - {price}) / {original_price}, 2) > 0.0001, 
+    'OFERTA',
+
+    ({value_41} = 0 OR isNull({value_41})) 
+        AND round(({original_price} - {price}) / {original_price}, 2) <= 0.0001, 
+    'SIN PROMO',
+
+    {unit_41} = "PEN", 
+    concat(toString(round(100 * (1 - ({price} / {real_price})), 0)), ' %'),
+
+    concat(toString({value_41}), {unit_41})
+)
+------------------------------------
+ifelse(
+    isNull({value_68}) OR {value_68} = 0 ,
+    ifelse(
+        round(({original_price} - {price_68}) / {original_price} , 2) > 0.0001,
+        "OFERTA",
+        "SIN PROMO"
+    ),
+    concat(toString({value_68}),{unit_68})
+    )
+-------------------------------------
+ifelse( {value_194} = 0 OR isNull({value_194}) ,
+    ifelse(
+        round(({original_price} - {price_194})/{original_price},2) > 0.0001,
+        "OFERTA",
+        "SIN PROMO"
+    ),
+    concat(toString({value_194}),{unit_194})
+)
+------------------------------------
+ifelse({value_140} = 0 OR isNull({value_140}),
+    ifelse(
+        round(({original_price} - {price_194}) / {original_price} , 2) > 0.0001, 
+        "OFERTA",
+        "SIN PROMO"
+    ),
+    concat(toString({value_140}),{unit_140})
+)
+
+-----------------------------------------------
+ifelse(
+    isNull({value_18}) OR {value_18} = 0, 
+    ifelse(
+        round(({original_price} - {price_18}) / {original_price}, 2) > 0.0001, 
+        "OFERTA", 
+        "SIN PROMO"
+    ), 
+    concat(toString({value_18}),{unit_18})
+)
+------------------------------------------------

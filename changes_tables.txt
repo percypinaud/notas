@@ -1,0 +1,15 @@
+
+ALTER TABLE main.t_partnerships CHANGE id_countries_ubigeos 123id_countries_ubigeos bigint unsigned NULL;
+ALTER TABLE main.t_partnerships CHANGE description 123description varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL;
+ALTER TABLE main.t_partnerships CHANGE ruc 123ruc varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL;
+ALTER TABLE main.t_partnerships CHANGE address 123address varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL;
+
+ALTER TABLE main.t_stores CHANGE id_stores_clusters 123id_stores_clusters bigint unsigned NULL;
+
+RENAME TABLE main.t_stores_clusters TO main.123t_stores_clusters;
+
+ALTER TABLE main.t_users CHANGE cid_user_gender_verified 123cid_user_gender_verified bigint unsigned DEFAULT 0 NOT NULL;
+ALTER TABLE main.t_users CHANGE cid_birthday_verified 123cid_birthday_verified bigint unsigned DEFAULT 0 NOT NULL;
+
+ALTER TABLE main.t_miniinventories CHANGE timestamp_from 123timestamp_from datetime NULL;
+ALTER TABLE main.t_miniinventories CHANGE timestamp_to 123timestamp_to datetime NULL;
