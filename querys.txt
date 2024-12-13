@@ -1,0 +1,716 @@
+* tPlatanitosPuntosUsers
+
+	SELECT
+	t1.id_users Usuario_ID,
+	upper(concat(t1.first_name ," ", t1.last_name )) Cliente,
+	t1.document Documento,
+	t1.phone Telefono,
+	lower(t1.email) Correo,
+	t3.current_points Puntos,
+	FROM 
+	`TurboCentaurusV2.t_users` t1
+	INNER JOIN `TurboCentaurusV2.t_users_points` t3 ON t1.id_users = t3.id_users
+	order by t3.current_points DESC ;
+		
+* tPlatanitosPuntosv2 
+
+	SELECT
+	DATE(DATETIME(t4.timestamp_created,"America/Lima")) Fecha_cupon_canjeado,
+	t5.Descripcion AS Canje_Puntos,
+	ABS(t4.points) AS Puntos_diarios
+	FROM TurboCentaurusV2.t_users_points_movements t4 
+	INNER JOIN (
+		SELECT 
+			amount_money,
+		CONCAT('Cupón',' s/',amount_money) as MontoCupon,           
+		CONCAT(amount_points,'※ ','S/',amount_money) as Descripcion 
+		FROM TurboCentaurusV2.t_users_points_benefits 
+	) t5 ON t5.amount_money = t4.total_money
+	WHERE t4.id_users_points_movements_types = "5"
+	AND t4.total_money <> 0 
+	AND t4.total_money IS NOT NULL;
+	
+* tPlatanitosPuntosUsados
+	SELECT
+		DISTINCT t1.uid_orders,
+		t1.id_orders,
+		date(datetime(t1.timestamp_created,"America/Lima")) Fecha_orden,
+		t5.id_users Usuario_ID,
+		upper(concat(t5.first_name ," ", t5.last_name )) Cliente,
+		t5.document Documento,
+		t5.phone Telefono,
+		lower(t5.email) Correo,
+		t7.MontoCupon AS Cupones_usados,
+		CASE 
+		  WHEN t1.id_stores_documented = '41' THEN 'Venta Online'
+		  ELSE 'Venta Tienda'
+		END AS Cupones_usados_tienda,
+		t6.store AS Tienda_pago,
+		t1.brute AS Monto_Total,
+		t4.amount_money,
+		t4.amount_points,
+		t4.minimum_purchase_amount
+	FROM `TurboCentaurusV2.t_orders` t1
+	INNER JOIN `TurboCentaurusV2.t_orders_items` t2 ON t2.id_orders = t1.id_orders
+	INNER JOIN `TurboCentaurusV2.t_users_points_redeems` t3 ON t3.id_promotions_compounds = t2.id_promotions_compounds
+	INNER JOIN `TurboCentaurusV2.t_users_points_benefits`  t4 ON t4.id_users_points_benefits = t3.id_users_points_benefits
+	INNER JOIN (
+		SELECT 
+			amount_money,
+		CONCAT('Cupón',' s/',amount_money) as MontoCupon,           
+		CONCAT(amount_points,'※ ','S/',amount_money) as Descripcion 
+		FROM TurboCentaurusV2.t_users_points_benefits 
+	) t7 ON t7.amount_money = t4.amount_money
+	INNER JOIN `TurboCentaurusV2.t_users` t5 ON t5.id_users = t1.id_users
+	INNER JOIN `TurboCentaurusV2.t_stores` t6 ON t6.id_stores = t1.id_stores_documented
+	WHERE t1.id_orders_statuses in ('2','3','4') AND t1.eid_orders IS NOT NULL
+	GROUP BY t1.uid_orders,
+	t4.amount_money,
+	t4.amount_points,
+	t4.minimum_purchase_amount,
+	t5.id_users,
+	t5.first_name,
+	t5.last_name,
+	t5.document,
+	t5.phone,
+	t1.timestamp_created,
+	t5.email,
+	t1.id_stores_documented,
+	t6.store, 
+	t1.brute,
+	t7.MontoCupon,
+	t1.id_orders;
+	
+* tPlatanitosPuntos_Expirados
+
+	SELECT 
+		DATE(DATETIME(t8.timestamp_end,"America/Lima")) Fecha_expiracion,t7.MontoCupon,t7.Descripcion,
+		COUNT(1) AS q_registros
+	FROM `TurboCentaurusV2.t_promotions_compounds` t8 
+	INNER JOIN (
+		SELECT 
+			amount_money,
+		CONCAT('Cupón',' s/',amount_money) as MontoCupon,           
+		CONCAT(amount_points,'※ ','S/',amount_money) as Descripcion 
+		FROM TurboCentaurusV2.t_users_points_benefits 
+	) t7 ON cast(format('%2.2f',t7.amount_money)as string) = t8.value
+	WHERE t8.quantity_used = '0' 
+	AND t8.promotion_compound like 'PROMOCIÓN POR PUNTOS%'
+	GROUP BY 
+	DATE(DATETIME(t8.timestamp_end,"America/Lima")),
+	t7.MontoCupon, 
+	t7.Descripcion;
+
+*  ClientesValidados
+	SELECT 
+		DATE(t1.timestamp_created,"America/Lima") as Fecha_creacion,
+		CONCAT(t1.first_name," ", t1.last_name) Clientes,
+		t1.uid_users,
+		t1.document,
+		t1.email,
+		t1.phone,
+		t1.cid_document_verified AS dni_verificado,
+		t1.cid_phone_verified AS tlf_verificado,
+		t1.cid_email_verified as email_verificado,
+		t1.cid_whatsapp_verified AS wspp_verificado,
+		IF(t1.cid_document_verified IS NOT NULL AND t1.cid_document_verified <> '0' ,1 , 0) as document_verified,
+		IF(t1.cid_phone_verified IS NOT NULL AND t1.cid_phone_verified <> '0' ,1 , 0) as phone_verified,
+		IF(t1.cid_email_verified IS NOT NULL AND t1.cid_email_verified <> '0' ,1 , 0) as email_verified,
+		IF(t1.cid_whatsapp_verified IS NOT NULL AND t1.cid_whatsapp_verified <> '0' ,1 , 0) as whatsapp_verified
+		-- t2.Tienda
+	FROM 
+	`TurboCentaurusV2.t_users` t1;
+
+* Valor del cliente 
+	SELECT
+	*,
+	CASE WHEN
+	  Fecha_Maxima_Verificacion < DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND 
+	  Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	THEN ID ELSE '0' END AS transactions_last_period,
+	CASE WHEN
+	  Fecha_Maxima_Verificacion < DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND 
+	  Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	THEN Id_User ELSE '0' END AS users_last_period,
+	CASE WHEN
+	  Fecha_Maxima_Verificacion < DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND 
+	  Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	THEN Subtotal ELSE 0 END AS sub_total_last_period,
+	CASE WHEN
+	  Fecha_Maxima_Verificacion < DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND 
+	  Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	THEN Margen ELSE 0 END AS margen_last_period,
+	CASE WHEN
+		Fecha_Maxima_Verificacion < PARSE_DATE('%Y%m%d', @DS_START_DATE)
+		AND Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+	THEN ID ELSE '0' END AS transactions_current_period,
+	CASE WHEN
+		Fecha_Maxima_Verificacion < PARSE_DATE('%Y%m%d', @DS_START_DATE)
+		AND Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+	THEN Id_User ELSE '0' END AS users_current_period,
+	CASE WHEN
+		Fecha_Maxima_Verificacion < PARSE_DATE('%Y%m%d', @DS_START_DATE)
+		AND Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+		THEN Subtotal ELSE 0 END AS sub_total_current_period,
+	CASE WHEN
+	  Fecha_Maxima_Verificacion < PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	AND Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+	THEN Margen ELSE 0 END AS margen_current_period
+
+	FROM (
+		SELECT 
+		Grupo,
+		Fecha_Facturacion,
+		Anio_Facturacion,
+		CASE
+		WHEN mes_facturacion = 1 THEN "Enero"
+		WHEN mes_facturacion = 2 THEN "Febrero"
+		WHEN mes_facturacion = 3 THEN "Marzo"
+		WHEN mes_facturacion = 4 THEN "Abril"
+		WHEN mes_facturacion = 5 THEN "Mayo"
+		WHEN mes_facturacion = 6 THEN "Junio"
+		WHEN mes_facturacion = 7 THEN "Julio"
+		WHEN mes_facturacion = 8 THEN "Agosto"
+		WHEN mes_facturacion = 9 THEN "Setiembre"
+		WHEN mes_facturacion = 10 THEN "Octubre"
+		WHEN mes_facturacion = 11 THEN "Noviembre"
+		WHEN mes_facturacion = 12 THEN "Diciembre"
+		end
+		AS Mes,
+		Dia_Facturacion,
+		Estado,
+		Metodo_Pago,
+		Tienda_Pago,
+		Tienda_Creacion,
+		Empresa,
+		Comercio,
+		Fuente,
+		Tipo_Producto,
+		Tipo,
+		Origen_Producto,
+		Jerarquia_1,
+		Jerarquia_2,
+		Jerarquia_3,
+		Jerarquia_4,
+		Proveedores,
+		Marcas,
+		Procedencia,
+		ID,
+		Tipo_Tienda_Pago AS Venta_Canal,
+		sum(Costo_Real) Costo_Real,
+		sum(Subtotal) Subtotal,
+		sum(Total) Total,
+		sum(Cantidad_Vendida) Cantidad_Vendida,
+		sum(Margen) Margen,
+		Season_Tienda,
+		datetime(current_timestamp ,"America/Lima") Ultima_actualizacion,
+		t1.ID_Cliente AS Id_User,
+		DATE(t3.max_verified_date) AS Fecha_Maxima_Verificacion,
+		DATE(t3.created_date) AS Fecha_Creacion_Usuario,
+		t2.Tipo_Cliente
+		FROM `UltraPegasus.tTransacciones`  t1
+		INNER JOIN (
+			SELECT
+			t1.id_users,
+			DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(GREATEST(
+				IFNULL(t1.cid_email_verified, '0'),
+				IFNULL(t1.cid_phone_verified, '0'),
+				IFNULL(t1.cid_whatsapp_verified, '0')
+			), 1, 14))), 'America/Lima') AS max_verified_date,
+			DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(t1.cuid_inserted, 1, 14))), 'America/Lima') AS created_date
+			FROM TurboCentaurusV2.t_users t1
+			WHERE
+			t1.cid_email_verified IS NOT NULL AND t1.cid_email_verified <> '0'
+			OR (
+				 (t1.cid_phone_verified IS NOT NULL AND t1.cid_phone_verified <> '0') OR 
+				 (t1.cid_whatsapp_verified  IS NOT NULL AND t1.cid_whatsapp_verified <> '0')
+			)
+		) t3 ON t3.id_users = t1.ID_Cliente
+		LEFT JOIN (
+			SELECT 
+				ID_Cliente,
+				CASE 
+					WHEN 
+						SUM(CASE WHEN Tienda_Pago = 'Fulfillment Ate Lima' THEN 1 ELSE 0 END) > 0
+						AND SUM(CASE WHEN Tienda_Pago <> 'Fulfillment Ate Lima' THEN 1 ELSE 0 END) > 0
+					THEN 'Híbrido'
+					WHEN 
+						SUM(CASE WHEN Tienda_Pago = 'Fulfillment Ate Lima' THEN 1 ELSE 0 END) > 0
+					THEN 'Online'
+				ELSE 'Físico'
+				END AS Tipo_Cliente
+			FROM (
+				SELECT 
+					t1.ID_Cliente,
+					t1.Tienda_Pago
+				FROM `UltraPegasus.tTransacciones` t1
+				INNER JOIN (
+					SELECT
+					t1.id_users,
+					DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(GREATEST(
+						IFNULL(t1.cid_email_verified, '0'),
+						IFNULL(t1.cid_phone_verified, '0'),
+						IFNULL(t1.cid_whatsapp_verified, '0')
+					), 1, 14))), 'America/Lima') AS max_verified_date,
+					DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(t1.cuid_inserted, 1, 14))), 'America/Lima') AS created_date
+					FROM TurboCentaurusV2.t_users t1
+					WHERE
+					t1.cid_email_verified IS NOT NULL AND t1.cid_email_verified <> '0'
+					OR (
+						 (t1.cid_phone_verified IS NOT NULL AND t1.cid_phone_verified <> '0') OR 
+						 (t1.cid_whatsapp_verified  IS NOT NULL AND t1.cid_whatsapp_verified <> '0')
+					)
+				) t2 ON t2.id_users = t1.ID_Cliente
+			) t1
+			GROUP BY 
+			ID_Cliente
+		) t2 ON t2.ID_Cliente = t1.ID_Cliente
+		WHERE
+		t1.Comercio = 'Platanitos'
+		GROUP BY
+		Grupo,
+		Fecha_Facturacion,
+		Anio_Facturacion,
+		Mes,
+		Dia_Facturacion,
+		Estado,
+		Metodo_Pago,
+		Tienda_Pago,
+		Tienda_Creacion,
+		Empresa,
+		Comercio,
+		Fuente,
+		Tipo_Producto,
+		Tipo,
+		Origen_Producto,
+		Jerarquia_1,
+		Jerarquia_2,
+		Jerarquia_3,
+		Jerarquia_4,
+		Proveedores,
+		Marcas,
+		Procedencia,
+		ID,
+		Season_Tienda,
+		Tipo_Tienda_Pago,
+		t1.ID_Cliente,
+		t3.created_date,
+		t3.max_verified_date,
+		t2.Tipo_Cliente
+	);
+
+* SQLPersonalizado1
+
+	SELECT 
+	t1.recurrent_user AS total_recurrent_users,
+	t2.total_users AS total_users,
+	t3.recurrent_user_last_period as total_recurrent_user_last_period,
+	t4.total_users_last_period as total_users_last_period
+	FROM (
+	  SELECT
+	  'ID' as id,
+	  COUNT(DISTINCT t1.Id_User) AS recurrent_user
+	  FROM UltraPegasus.t_usuarios_transacciones t1 
+	  INNER JOIN (
+		SELECT 
+		Id_User
+		FROM UltraPegasus.t_usuarios_transacciones
+		WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	  ) t2 ON t1.Id_User = t2.Id_User
+	  WHERE t1.Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+	) t1 INNER JOIN (
+	  SELECT 
+	  'ID' as id,
+	  COUNT(DISTINCT Id_User) AS total_users
+	  FROM UltraPegasus.t_usuarios_transacciones
+	  WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	) t2 ON t1.id = t2.id
+	INNER JOIN (
+	  SELECT
+	  'ID' as id,
+	  COUNT(DISTINCT t1.Id_User) AS recurrent_user_last_period
+	  FROM UltraPegasus.t_usuarios_transacciones t1 
+	  INNER JOIN (
+		SELECT 
+		'ID' as id,
+		Id_User
+		FROM UltraPegasus.t_usuarios_transacciones
+		WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 730 DAY) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY)
+	  ) t2 ON t1.Id_User = t2.Id_User
+	  WHERE t1.Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	) t3 ON t3.id = t2.id
+	INNER JOIN (
+	  SELECT 
+	  'ID' as id,
+	  COUNT(DISTINCT Id_User) AS total_users_last_period
+	  FROM UltraPegasus.t_usuarios_transacciones
+	  WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 730 DAY) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY)
+	) t4 ON t4.id = t2.id
+	
+* SQLPersonalizado2 
+	
+	SELECT 
+	t1.recurrent_user AS total_recurrent_users,
+	t2.total_users AS total_users,
+	t3.recurrent_user_last_period as total_recurrent_user_last_period,
+	t4.total_users_last_period as total_users_last_period
+	FROM (
+	  SELECT
+	  'ID' as id,
+	  COUNT(DISTINCT t1.Id_User) AS recurrent_user
+	  FROM UltraPegasus.t_usuarios_transacciones t1 
+	  INNER JOIN (
+		SELECT 
+		Id_User
+		FROM UltraPegasus.t_usuarios_transacciones
+		WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	  ) t2 ON t1.Id_User = t2.Id_User
+	  WHERE t1.Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+	) t1 INNER JOIN (
+	  SELECT 
+	  'ID' as id,
+	  COUNT(DISTINCT Id_User) AS total_users
+	  FROM UltraPegasus.t_usuarios_transacciones
+	  WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	) t2 ON t1.id = t2.id
+	INNER JOIN (
+	  SELECT
+	  'ID' as id,
+	  COUNT(DISTINCT t1.Id_User) AS recurrent_user_last_period
+	  FROM UltraPegasus.t_usuarios_transacciones t1 
+	  INNER JOIN (
+		SELECT 
+		'ID' as id,
+		Id_User
+		FROM UltraPegasus.t_usuarios_transacciones
+		WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 730 DAY) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY)
+	  ) t2 ON t1.Id_User = t2.Id_User
+	  WHERE t1.Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	) t3 ON t3.id = t2.id
+	INNER JOIN (
+	  SELECT 
+	  'ID' as id,
+	  COUNT(DISTINCT Id_User) AS total_users_last_period
+	  FROM UltraPegasus.t_usuarios_transacciones
+	  WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 730 DAY) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY)
+	) t4 ON t4.id = t2.id
+
+* SQLPersonalizado3 
+	
+	SELECT 
+	t1.recurrent_user AS total_recurrent_users,
+	t2.total_users AS total_users,
+	t3.recurrent_user_last_period as total_recurrent_user_last_period,
+	t4.total_users_last_period as total_users_last_period
+	FROM (
+	  SELECT
+	  'ID' as id,
+	  COUNT(DISTINCT t1.Id_User) AS recurrent_user
+	  FROM UltraPegasus.t_usuarios_transacciones t1 
+	  INNER JOIN (
+		SELECT 
+		Id_User
+		FROM UltraPegasus.t_usuarios_transacciones
+		WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	  ) t2 ON t1.Id_User = t2.Id_User
+	  WHERE t1.Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+	) t1 INNER JOIN (
+	  SELECT 
+	  'ID' as id,
+	  COUNT(DISTINCT Id_User) AS total_users
+	  FROM UltraPegasus.t_usuarios_transacciones
+	  WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	) t2 ON t1.id = t2.id
+	INNER JOIN (
+	  SELECT
+	  'ID' as id,
+	  COUNT(DISTINCT t1.Id_User) AS recurrent_user_last_period
+	  FROM UltraPegasus.t_usuarios_transacciones t1 
+	  INNER JOIN (
+		SELECT 
+		'ID' as id,
+		Id_User
+		FROM UltraPegasus.t_usuarios_transacciones
+		WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 730 DAY) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY)
+	  ) t2 ON t1.Id_User = t2.Id_User
+	  WHERE t1.Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	) t3 ON t3.id = t2.id
+	INNER JOIN (
+	  SELECT 
+	  'ID' as id,
+	  COUNT(DISTINCT Id_User) AS total_users_last_period
+	  FROM UltraPegasus.t_usuarios_transacciones
+	  WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 730 DAY) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY)
+	) t4 ON t4.id = t2.id
+	
+* SQLPersonalizado4
+	SELECT 
+	t1.recurrent_user AS total_recurrent_users,
+	t2.total_users AS total_users,
+	t3.recurrent_user_last_period as total_recurrent_user_last_period,
+	t4.total_users_last_period as total_users_last_period
+	FROM (
+	  SELECT
+	  'ID' as id,
+	  COUNT(DISTINCT t1.Id_User) AS recurrent_user
+	  FROM UltraPegasus.t_usuarios_transacciones t1 
+	  INNER JOIN (
+		SELECT 
+		Id_User
+		FROM UltraPegasus.t_usuarios_transacciones
+		WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	  ) t2 ON t1.Id_User = t2.Id_User
+	  WHERE t1.Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+	) t1 INNER JOIN (
+	  SELECT 
+	  'ID' as id,
+	  COUNT(DISTINCT Id_User) AS total_users
+	  FROM UltraPegasus.t_usuarios_transacciones
+	  WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	) t2 ON t1.id = t2.id
+	INNER JOIN (
+	  SELECT
+	  'ID' as id,
+	  COUNT(DISTINCT t1.Id_User) AS recurrent_user_last_period
+	  FROM UltraPegasus.t_usuarios_transacciones t1 
+	  INNER JOIN (
+		SELECT 
+		'ID' as id,
+		Id_User
+		FROM UltraPegasus.t_usuarios_transacciones
+		WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 730 DAY) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY)
+	  ) t2 ON t1.Id_User = t2.Id_User
+	  WHERE t1.Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY) AND PARSE_DATE('%Y%m%d', @DS_START_DATE)
+	) t3 ON t3.id = t2.id
+	INNER JOIN (
+	  SELECT 
+	  'ID' as id,
+	  COUNT(DISTINCT Id_User) AS total_users_last_period
+	  FROM UltraPegasus.t_usuarios_transacciones
+	  WHERE Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 730 DAY) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 365 DAY)
+	) t4 ON t4.id = t2.id
+	
+* Schedule RFM_percent 
+
+	SELECT
+		RFM,
+		SUM(CASE WHEN Period = 'current' THEN Record_Count ELSE 0 END) AS Record_Count_Current,
+		SUM(CASE WHEN Period = 'previous' THEN Record_Count ELSE 0 END) AS Record_Count_Previous,
+		CONCAT(ROUND(100.0 * SUM(CASE WHEN Period = 'current' THEN Record_Count ELSE 0 END) / NULLIF(SUM(SUM(CASE WHEN Period = 'current' THEN Record_Count ELSE 0 END)) OVER (), 0), 2), '%') AS Percent_Current,
+		CONCAT(ROUND(100.0 * SUM(CASE WHEN Period = 'previous' THEN Record_Count ELSE 0 END) / NULLIF(SUM(SUM(CASE WHEN Period = 'previous' THEN Record_Count ELSE 0 END)) OVER (), 0), 2), '%') AS Percent_Previous
+	FROM (
+		SELECT
+			CASE
+				WHEN t1.Recencia = 5 AND t1.Frecuencia = 5 AND t1.Monto = 5 THEN '1. Champions R(5) | F(5) | M(5)'
+				WHEN (t1.Recencia IN (3,4,5)) AND (t1.Frecuencia IN (4,5)) AND (Monto IN (3,4,5)) THEN '2. Loyal Customers R (3,4,5) | F (4,5) | M (3,4,5)'
+				WHEN (t1.Recencia IN (2,3,4,5)) AND (t1.Frecuencia IN (2,3)) AND (Monto IN (3,4,5)) THEN '3. Potential Loyalists R (2,3,4,5) | F (2,3) | M (3,4,5)'
+				WHEN (t1.Recencia = 5) AND (t1.Frecuencia = 1) AND (Monto IN (1,2,3,4,5)) THEN '4. New Customers R(5) | F(1) | M(1,2,3,4,5)'
+				WHEN (t1.Recencia IN (1,2,3)) AND (t1.Frecuencia IN (2,3)) AND (Monto IN (3,4,5)) THEN '5. At Risk R(1,2,3) | F(2,3) | M(3,4,5)'
+				ELSE '6. Lost R(1) | F(1) | M(1)'
+			END AS RFM,
+			'current' AS Period,
+			COUNT(1) AS Record_Count
+		FROM (
+			SELECT
+				t1.ID_Cliente,
+				CONCAT(t1.Nombres, ' ', t1.Apellidos) AS Cliente,
+				CASE
+					WHEN DATE_DIFF(PARSE_DATE('%Y%m%d', @DS_END_DATE), MAX(t1.Fecha_Facturacion), DAY) <= 30 THEN 5
+					WHEN DATE_DIFF(PARSE_DATE('%Y%m%d', @DS_END_DATE), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 31 AND 60 THEN 4
+					WHEN DATE_DIFF(PARSE_DATE('%Y%m%d', @DS_END_DATE), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 61 AND 100 THEN 3
+					WHEN DATE_DIFF(PARSE_DATE('%Y%m%d', @DS_END_DATE), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 101 AND 180 THEN 2
+					ELSE 1
+				END AS Recencia,
+				CASE
+					WHEN COUNT(DISTINCT t1.ID) >= 9 THEN 5
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 6 AND 8 THEN 4
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 4 AND 5 THEN 3
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 2 AND 3 THEN 2
+					ELSE 1
+				END AS Frecuencia,
+				CASE
+					WHEN SUM(t1.subtotal) >= 700 THEN 5
+					WHEN SUM(t1.subtotal) BETWEEN 351 AND 700 THEN 4
+					WHEN SUM(t1.subtotal) BETWEEN 301 AND 350 THEN 3
+					WHEN SUM(t1.subtotal) BETWEEN 101 AND 300 THEN 2
+					ELSE 1
+				END AS Monto
+			FROM UltraPegasus.tTransacciones t1
+			INNER JOIN (
+				SELECT
+					t1.id_users,
+					t1.document,
+					DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(GREATEST(
+						IFNULL(t1.cid_email_verified, '0'),
+						IFNULL(t1.cid_phone_verified, '0'),
+						IFNULL(t1.cid_whatsapp_verified, '0')
+					), 1, 14))), 'America/Lima') AS max_verified_date,
+					DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(t1.cuid_inserted, 1, 14))), 'America/Lima') AS created_date
+				FROM TurboCentaurusV2.t_users t1
+				WHERE
+					t1.cid_email_verified IS NOT NULL AND t1.cid_email_verified <> '0'
+					OR (
+						(t1.cid_phone_verified IS NOT NULL AND t1.cid_phone_verified <> '0')
+						OR (t1.cid_whatsapp_verified IS NOT NULL AND t1.cid_whatsapp_verified <> '0')
+					)
+			) t2 ON t2.id_users = t1.ID_Cliente
+			WHERE t1.Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+				AND t1.Comercio = 'Platanitos'
+			GROUP BY
+				t1.ID_Cliente,
+				t1.Nombres,
+				t1.Apellidos
+		) t1
+		GROUP BY RFM
+
+		UNION ALL
+
+		SELECT
+			CASE
+				WHEN t1.Recencia = 5 AND t1.Frecuencia = 5 AND t1.Monto = 5 THEN '1. Champions R(5) | F(5) | M(5)'
+				WHEN (t1.Recencia IN (3,4,5)) AND (t1.Frecuencia IN (4,5)) AND (Monto IN (3,4,5)) THEN '2. Loyal Customers R (3,4,5) | F (4,5) | M (3,4,5)'
+				WHEN (t1.Recencia IN (2,3,4,5)) AND (t1.Frecuencia IN (2,3)) AND (Monto IN (3,4,5)) THEN '3. Potential Loyalists R (2,3,4,5) | F (2,3) | M (3,4,5)'
+				WHEN (t1.Recencia = 5) AND (t1.Frecuencia = 1) AND (Monto IN (1,2,3,4,5)) THEN '4. New Customers R(5) | F(1) | M(1,2,3,4,5)'
+				WHEN (t1.Recencia IN (1,2,3)) AND (t1.Frecuencia IN (2,3)) AND (Monto IN (3,4,5)) THEN '5. At Risk R(1,2,3) | F(2,3) | M(3,4,5)'
+				ELSE '6. Lost R(1) | F(1) | M(1)'
+			END AS RFM,
+			'previous' AS Period,
+			COUNT(1) AS Record_Count
+		FROM (
+			SELECT
+				t1.ID_Cliente,
+				CONCAT(t1.Nombres, ' ', t1.Apellidos) AS Cliente,
+				CASE
+					WHEN DATE_DIFF(DATE_SUB(PARSE_DATE('%Y%m%d', @DS_END_DATE), INTERVAL 1 YEAR), MAX(t1.Fecha_Facturacion), DAY) <= 30 THEN 5
+					WHEN DATE_DIFF(DATE_SUB(PARSE_DATE('%Y%m%d', @DS_END_DATE), INTERVAL 1 YEAR), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 31 AND 60 THEN 4
+					WHEN DATE_DIFF(DATE_SUB(PARSE_DATE('%Y%m%d', @DS_END_DATE), INTERVAL 1 YEAR), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 61 AND 100 THEN 3
+					WHEN DATE_DIFF(DATE_SUB(PARSE_DATE('%Y%m%d', @DS_END_DATE), INTERVAL 1 YEAR), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 101 AND 180 THEN 2
+					ELSE 1
+				END AS Recencia,
+				CASE
+					WHEN COUNT(DISTINCT t1.ID) >= 9 THEN 5
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 6 AND 8 THEN 4
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 4 AND 5 THEN 3
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 2 AND 3 THEN 2
+					ELSE 1
+				END AS Frecuencia,
+				CASE
+					WHEN SUM(t1.subtotal) >= 700 THEN 5
+					WHEN SUM(t1.subtotal) BETWEEN 351 AND 700 THEN 4
+					WHEN SUM(t1.subtotal) BETWEEN 301 AND 350 THEN 3
+					WHEN SUM(t1.subtotal) BETWEEN 101 AND 300 THEN 2
+					ELSE 1
+				END AS Monto
+			FROM UltraPegasus.tTransacciones t1
+			INNER JOIN (
+				SELECT
+					t1.id_users,
+					t1.document,
+					DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(GREATEST(
+						IFNULL(t1.cid_email_verified, '0'),
+						IFNULL(t1.cid_phone_verified, '0'),
+						IFNULL(t1.cid_whatsapp_verified, '0')
+					), 1, 14))), 'America/Lima') AS max_verified_date,
+					DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(t1.cuid_inserted, 1, 14))), 'America/Lima') AS created_date
+				FROM TurboCentaurusV2.t_users t1
+				WHERE
+					t1.cid_email_verified IS NOT NULL AND t1.cid_email_verified <> '0'
+					OR (
+						(t1.cid_phone_verified IS NOT NULL AND t1.cid_phone_verified <> '0')
+						OR (t1.cid_whatsapp_verified IS NOT NULL AND t1.cid_whatsapp_verified <> '0')
+					)
+			) t2 ON t2.id_users = t1.ID_Cliente
+			WHERE t1.Fecha_Facturacion BETWEEN DATE_SUB(PARSE_DATE('%Y%m%d', @DS_START_DATE), INTERVAL 1 YEAR) AND DATE_SUB(PARSE_DATE('%Y%m%d', @DS_END_DATE), INTERVAL 1 YEAR)
+				AND t1.Comercio = 'Platanitos'
+			GROUP BY
+				t1.ID_Cliente,
+				t1.Nombres,
+				t1.Apellidos
+		) t1
+		GROUP BY RFM
+	) t
+	GROUP BY RFM
+	ORDER BY RFM;
+
+* SQLPersonalizado5 
+
+	SELECT
+		RFM,
+		Year,
+		Month,
+		CONCAT(CAST(Year AS STRING), '-', LPAD(CAST(Month AS STRING), 2, '0')) AS YearMonth,
+		SUM(Record_Count) AS Record_Count_Current,
+		CONCAT(ROUND(100.0 * SUM(Record_Count) / NULLIF(SUM(SUM(Record_Count)) OVER (PARTITION BY Year, Month, RFM), 0), 2), '%') AS Percent_Current
+	FROM (
+		SELECT
+			t1.Fecha_Facturacion,
+			EXTRACT(YEAR FROM t1.Fecha_Facturacion) AS Year,
+			EXTRACT(MONTH FROM t1.Fecha_Facturacion) AS Month,
+			CASE
+				WHEN t1.Recencia = 5 AND t1.Frecuencia = 5 AND t1.Monto = 5 THEN 'Champions'
+				WHEN (t1.Recencia IN (3,4,5)) AND (t1.Frecuencia IN (4,5)) AND (t1.Monto IN (3,4,5)) THEN 'Loyal Customers'
+				WHEN (t1.Recencia IN (2,3,4,5)) AND (t1.Frecuencia IN (2,3)) AND (t1.Monto IN (3,4,5)) THEN 'Potential Loyalists'
+				WHEN (t1.Recencia = 5) AND (t1.Frecuencia = 1) AND (t1.Monto IN (1,2,3,4,5)) THEN 'New Customers'
+				WHEN (t1.Recencia IN (1,2,3)) AND (t1.Frecuencia IN (2,3)) AND (t1.Monto IN (3,4,5)) THEN 'At Risk'
+				ELSE 'Lost'
+			END AS RFM,
+			COUNT(1) AS Record_Count
+		FROM (
+			SELECT
+				t1.ID_Cliente,
+				t1.Fecha_Facturacion,
+				CONCAT(t1.Nombres, ' ', t1.Apellidos) AS Cliente,
+				CASE
+					WHEN DATE_DIFF(PARSE_DATE('%Y%m%d', @DS_END_DATE), MAX(t1.Fecha_Facturacion), DAY) <= 30 THEN 5
+					WHEN DATE_DIFF(PARSE_DATE('%Y%m%d', @DS_END_DATE), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 31 AND 60 THEN 4
+					WHEN DATE_DIFF(PARSE_DATE('%Y%m%d', @DS_END_DATE), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 61 AND 100 THEN 3
+					WHEN DATE_DIFF(PARSE_DATE('%Y%m%d', @DS_END_DATE), MAX(t1.Fecha_Facturacion), DAY) BETWEEN 101 AND 180 THEN 2
+					ELSE 1
+				END AS Recencia,
+				CASE
+					WHEN COUNT(DISTINCT t1.ID) >= 9 THEN 5
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 6 AND 8 THEN 4
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 4 AND 5 THEN 3
+					WHEN COUNT(DISTINCT t1.ID) BETWEEN 2 AND 3 THEN 2
+					ELSE 1
+				END AS Frecuencia,
+				CASE
+					WHEN SUM(t1.subtotal) >= 700 THEN 5
+					WHEN SUM(t1.subtotal) BETWEEN 351 AND 700 THEN 4
+					WHEN SUM(t1.subtotal) BETWEEN 301 AND 350 THEN 3
+					WHEN SUM(t1.subtotal) BETWEEN 101 AND 300 THEN 2
+					ELSE 1
+				END AS Monto
+			FROM UltraPegasus.tTransacciones t1
+			INNER JOIN (
+				SELECT
+					t1.id_users,
+					t1.document,
+					DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(GREATEST(
+						IFNULL(t1.cid_email_verified, '0'),
+						IFNULL(t1.cid_phone_verified, '0'),
+						IFNULL(t1.cid_whatsapp_verified, '0')
+					), 1, 14))), 'America/Lima') AS max_verified_date,
+					DATETIME(TIMESTAMP(PARSE_DATETIME('%Y%m%d%H%M%S', SUBSTR(t1.cuid_inserted, 1, 14))), 'America/Lima') AS created_date
+				FROM TurboCentaurusV2.t_users t1
+				WHERE
+					t1.cid_email_verified IS NOT NULL AND t1.cid_email_verified <> '0'
+					OR (
+						(t1.cid_phone_verified IS NOT NULL AND t1.cid_phone_verified <> '0')
+						OR (t1.cid_whatsapp_verified IS NOT NULL AND t1.cid_whatsapp_verified <> '0')
+					)
+			) t2 ON t2.id_users = t1.ID_Cliente
+			WHERE t1.Fecha_Facturacion BETWEEN PARSE_DATE('%Y%m%d', @DS_START_DATE) AND PARSE_DATE('%Y%m%d', @DS_END_DATE)
+				AND t1.Comercio = 'Platanitos'
+			GROUP BY
+				t1.ID_Cliente,
+				t1.Fecha_Facturacion,
+				t1.Nombres,
+				t1.Apellidos
+		) t1
+		GROUP BY RFM, t1.Fecha_Facturacion
+	) t
+	GROUP BY RFM, Year, Month
+	ORDER BY Year, Month, RFM;
+
+* SQLPersonalizado6 

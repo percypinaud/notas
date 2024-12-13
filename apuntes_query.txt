@@ -1,0 +1,64 @@
+Apuntes de Comportamiento de cliente
+
+- Puntos platanitos
+
+	* tPlatanitosPuntosUsers
+	* tPlatanitosPuntosv2
+	* tPlatanitosPuntosv2
+	* tPlatanitosPuntosUsados
+	* tPlatanitosPuntos_Expirados
+	* tPlatanitosPuntos_Expirados
+	* tPlatanitosPuntosUsados 
+	* tPlatanitosPuntosUsados 
+	* tPlatanitosPuntosUsados
+	* tPlatanitosPuntosUsados
+	* tPlatanitosPuntosUsados 
+	* tPlatanitosPuntosUsados
+	* tPlatanitosPuntosUsados
+	
+- Clientes - 365 
+	
+	* Clientes365ALL
+	* ClientesPuntosPlatanitosPeriodo730
+	* Clientes365NoCupon
+	* ClientesNuevosPuntosPlatanitos
+	* ClientesAntiguosSinCupon
+	* ClientesNuevosSinCupon
+	* ClientesPuntosPlatanitosSinCupon
+	* ClientesPuntosPlatanitos
+	* PuntosPlatanitosCupones-365 
+	* ClientesPlat730Transacciones365
+	
+- Clientes platanitos
+	* ClientesValidados
+	* ClientesValidados 
+	* ClientesValidados
+	* ClientesValidados
+	* ClientesValidados
+	* ClientesValidados
+	* ClientesValidados 
+	* ClientesValidados
+	* ClientesValidados
+	* ClientesValidados
+	* ClientesValidados
+
+- Valor del cliente 
+	
+	* Valor del cliente 
+	* Valor del cliente 
+	* Valor del cliente 
+	* Valor del cliente 
+	* Valor del cliente 
+	* Valor del cliente 
+	
+- Tasa de Abandono del Cliente
+	
+	* SQLPersonalizado1
+	* SQLPersonalizado2
+	* SQLPersonalizado3
+	* SQLPersonalizado4
+	* tFotoUsuariosTransacciones (Es una tabla pero no se encontró el trigger)
+	
+- RFM
+	
+	* Schedule RFM_percent

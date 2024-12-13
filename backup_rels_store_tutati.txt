@@ -1,0 +1,87 @@
+CREATE
+OR REPLACE VIEW v_items_1_rels_stores_tutati AS
+SELECT
+    t1.id_items_1,
+    t2.uid_items_1,
+    t2.eid_items_1,
+    t2.ean AS eid2_items_1,
+    t3.id_items_2,
+    t3.uid_items_2,
+    t3.eid_items_2,
+    t3.mpn AS eid2_items_2,
+    t3.model,
+    t10.item_2_taxonomy_term AS color,
+    t12.item_1_taxonomy_term AS size,
+    t18.item_2_taxonomy_term AS unit,
+    t8.item_2_taxonomy_term AS brand,
+    t6.item_2_taxonomy_term AS supplier,
+    t3.season,
+    t3.season_year,
+    t1.id_stores,
+    t4.eid,
+    t4.store,
+    t1.real_stock,
+    t1.stock,
+    t1.consignment,
+    t1.invented,
+    t1.sample,
+    t1.failed,
+    t1.transit_stock,
+    COALESCE(t1.objetive_stock, 0) AS rp_objetive,
+    public.default_item_image(t19.path, 30, 30) AS path,
+    CONVERT_TIMEZONE('America/Lima', t3.timestamp_active) AS timestamp_published,
+    public.cuid_to_datetime(t1.cuid_inserted:: text) AS timestamp_created,
+    public.cuid_to_datetime(t1.cuid_updated:: text) AS timestamp_modified,
+    t30.price,
+    t30.real_price,
+    t30.original_price,
+    t39.item_2_hierarchy hierarchy_1,
+    t38.item_2_hierarchy hierarchy_2,
+    t37.item_2_hierarchy hierarchy_3,
+    t36.item_2_hierarchy hierarchy_4,
+    CASE
+    WHEN UPPER(t3.source) = 'CA' THEN 'COMPRA ASEGURADA'
+    WHEN t3.consignment > 0 THEN 'CONSIGNADO'
+    WHEN UPPER(t6.item_2_taxonomy_term) IN ('LOREANI', 'SASILVA') THEN 'NACIONAL'
+    WHEN t3.id_commerces <> '1' THEN 'B2B'
+    ELSE UPPER(t41.item_2_taxonomy_term) END AS source,
+    t42.discount,
+    t42.value as value_discount,
+    t42.unit as unit_discount
+FROM
+    main.main.t_items_1_rels_stores t1
+    INNER JOIN main.main.t_items_1 t2 ON t2.id_items_1 = t1.id_items_1
+    INNER JOIN main.main.t_items_2 t3 ON t3.id_items_2 = t2.id_items_2
+    INNER JOIN main.main.t_stores t4 on t4.id_stores = t1.id_stores
+    LEFT JOIN main.main.t_items_2_rels_stores t30 ON t30.id_items_2 = t3.id_items_2
+    AND t30.id_stores = t1.id_stores -- IMAGE
+    LEFT JOIN main.main.t_items_2_images t19 ON t19.id_items_2 = t3.id_items_2
+    AND t19.width = 30
+    AND t19.height = 30
+    AND t19.weight = 1 -- SUPPLIER
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t5 ON t5.id_items_2 = t3.id_items_2
+    AND t5.id_items_2_taxonomies = 1
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t6 ON t6.id_items_2_taxonomies_terms = t5.id_items_2_taxonomies_terms -- BRANDS
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t7 ON t7.id_items_2 = t3.id_items_2
+    AND t7.id_items_2_taxonomies = 2
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t8 ON t8.id_items_2_taxonomies_terms = t7.id_items_2_taxonomies_terms -- UNITS
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t17 ON t17.id_items_2 = t3.id_items_2
+    AND t17.id_items_2_taxonomies = 3
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t18 ON t18.id_items_2_taxonomies_terms = t17.id_items_2_taxonomies_terms -- SIZE
+    LEFT JOIN main.main.t_items_1_taxonomies_terms_rels_items_1 t11 ON t11.id_items_1 = t2.id_items_1
+    AND t11.id_items_1_taxonomies = 1
+    LEFT JOIN main.main.t_items_1_taxonomies_terms t12 ON t12.id_items_1_taxonomies_terms = t11.id_items_1_taxonomies_terms -- COLOR
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t9 ON t9.id_items_2 = t3.id_items_2
+    AND t9.id_items_2_taxonomies = 5
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t10 ON t10.id_items_2_taxonomies_terms = t9.id_items_2_taxonomies_terms
+    LEFT JOIN main.main.t_items_2_hierarchies t36 ON t36.id_items_2_hierarchies = t3.id_items_2_hierarchies
+    LEFT JOIN main.main.t_items_2_hierarchies t37 ON t37.id_items_2_hierarchies = t36.id_items_2_hierarchies_parents
+    LEFT JOIN main.main.t_items_2_hierarchies t38 ON t38.id_items_2_hierarchies = t37.id_items_2_hierarchies_parents
+    LEFT JOIN main.main.t_items_2_hierarchies t39 ON t39.id_items_2_hierarchies = t38.id_items_2_hierarchies_parents -- PROCEDENCIA
+    LEFT JOIN main.main.t_items_2_taxonomies_terms_rels_items_2 t40 ON t17.id_items_2 = t40.id_items_2
+    AND t40.id_items_2_taxonomies = 13
+    LEFT JOIN main.main.t_items_2_taxonomies_terms t41 ON t41.id_items_2_taxonomies_terms = t40.id_items_2_taxonomies_terms
+    AND t41.id_items_2_taxonomies = t40.id_items_2_taxonomies
+    LEFT JOIN public.v_promotions t42 on t42.id_items_2 = t3.id_items_2
+    and t42.id_stores = '41'
+    and t42.rank = 1 WITH NO SCHEMA BINDING;

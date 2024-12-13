@@ -1,0 +1,108 @@
+- Transacciones
+
+Transacciones por hora - poner por defecto el dia actual 
+Transacciones por dia 
+
+	- poner este mes por defecto - revisar los montos 	
+	- poner filtro de tipo de venta, diferida o directa
+	- revisar las fechas que no cuadran hasta 7 de octubre
+	- solo cambiar el año para el comparativo 
+	- ocultar los otros en los graficos de barra 
+	
+Transacciones semanales 
+	- delimitar las fechas  por año 
+
+Se requiere hacer el reporte comparativo con periodo pasado
+- siempre compara con el año psaado 
+
+
+- Inventario 
+ - reporte de comisiones ya està 
+ 
+- Jerarquia y Nodos 
+ - reporte de jerarquia -> muy necesario 
+ 
+- Foto STOCKS
+
+	- Detalle de foto diaria stock 
+	- Aqui se debe hacer un trabajo de migracion
+	- por meses usan sus filtros 
+	- esto va a ir al ùltimo 
+	- lo que se quiere es ver el stock diario en si , lo que pasarìa serìa detalle foto diaria stock 
+
+- Paquetes
+
+	- Envio de paquetes es necesario 
+	- es el reporte que envie, el excel de periodos 
+	- solo debe ser simple 
+	
+- Marketing
+
+	- no se sabe quien lo pidiò, alessandro
+	
+- Comportamiento
+	- Puntos platanitos - està muerto a ver si lo revivimos
+	- CLientes 365 
+		- 
+	
+- UX 
+	- Registro de transacciones 
+	  hay varias cosas que corregir con los montos 
+	
+	
+Todos los clientes validados que compraron hace 720 dias 
+todos los que no compraron hace un año pero nos compraron este año 
+
+- Magaly usa 
+	- Ventas ( Transacciones ) 
+	- Stock de Tiendas 	 - Ya hay en quicksight pero hay que hacer modificaciones "Explorador de Productos"
+	- Pre Salidas COnsolidado . Salientes  ya hay en quicksigth como reporte de salientes 
+	- Transferencia Material 
+	- Productos Hijos por tienda - explorador de productos Tutati - en quicksight, agrega año en una columna 
+	- Agregar filtros para Salientes
+	- Descargas Tutati
+	- Explorador de salientes Tutati - Salientes, agregar columna Fecha Documentacion
+	
+- Reportes Control
+	- Global LPN - Ya està 
+	- Control de articulos - Prioridad Alta
+	- 
+	
+- Descargas Tutati 
+	- QUitarlo (ocultarlo)
+	
+- Reportes de control
+	- LPN - esconder 
+	- Salidas esconder 
+	Global controlTransferencia - esconder 
+	Stock Tiendas LPN - esconder 
+	-Control de articulos - Hacero 
+
+- Atencion al clientes
+	- Tramos pendientes (quitarlo)
+	
+Compras
+    - Ventas acumuladas - Revisar en quicksight ( hacer ) 
+	- Ventas por semana y mes se puede unir en uno solo 
+	- Descuento compartido ( revisar en quicksight sin ocrear )
+	- Promo Tiendas Vulcano ( hacerlo)
+	- Liquidaciones B2B ya està 
+	- Acance de ingreso ( ya lo pasò renzo)
+	- Liquidaciones Lumberkaacl ( revisar ) 
+	
+
+Transacciones 
+	- Notas de credito (esconder) 
+	
+
+Cuendo trabajamos en Clientes ( Reporte RFM en Comportamiento)
+ - Quieren ver el detalle de cliente ( nombre, direccion, telefono, etc) 
+ 
+En quicksight hay un usuario por área 
+
+El explorador de productos solo tiene data generica, 
+no se puede ensuciar con màs campos muy puntuales de algunas areas 
+
+Jerarquìa y Modelo debe agregarsse a todos los reportes con producto 
+
+Agregar filtro de SHort Description - y Model para los filtros 
